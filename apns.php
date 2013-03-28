@@ -264,8 +264,19 @@ class spSimpleAPNSMessage
 			$ret[$k] = $v;
 		}
 
-		return json_encode($ret);
+		return apns_json_encode($ret);
 	}
 }
 
+if (!function_exists('apns_json_encode')) {
+    function apns_replace_unicode($in) {
+        return json_decode('"' . $in .'"');
+    }
+
+    function apns_json_encode($in)
+    {
+        $s = preg_replace("#(\\\u[0-9a-f]{4})+#ie", "apns_replace_unicode('$0')", json_encode($in));
+        return $s;
+    }
+}
 # EOF
