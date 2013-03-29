@@ -74,6 +74,22 @@ class spSimpleAPNS {
 		return $fwrite;
 	}
 
+	public function pushOne(spSimpleAPNSMessage $messageobj, $token, $identity=null, $expiry=null) 
+	{
+		$message = $messageobj->payload($token, $identity, $expiry);
+                $fwrite = fwrite($this->connect('gateway'), $message);
+                return $fwrite;
+
+	}
+
+	public function readErrorResponse()
+	{
+		$read = fread($this->connect('gateway'), 6);
+		$code = ord($read[1]);
+		$identity = unpack('N', substr($read, 2));
+		return array($code, $identity);
+	}
+
 	public function feedback($callback, $daemon=false, $loop_count=100000)
 	{
 		$c = 0;
@@ -202,7 +218,7 @@ class spSimpleAPNSMessage
 	 * @param string $token
 	 * @return boolean|string
 	 */
-	public function payload($token)
+	public function payload($token, $identity=null, $expiry=null)
 	{
 		if (!preg_match('#^[0-9a-f]{64}$#i', $token)) {
 			# Add Support  for 'xxxxxxxx xxxxxxxx xxxxxxxx xxxxxxxx xxxxxxxx xxxxxxxx xxxxxxxx xxxxxxxx'
@@ -214,8 +230,11 @@ class spSimpleAPNSMessage
 		}
 		$message = $this->build();
 
-		$msg = chr(0).pack("n",32).pack('H*',$token).pack("n",strlen($message)).$message;
-
+		if ($identity !== null && $expiry !== null) {
+			$msg = chr(1).pack('N', (int) $identity).pack('N', (int) $expiry).pack("n",32).pack('H*',$token).pack("n",strlen($message)).$message;
+		} else {
+			$msg = chr(0).pack("n",32).pack('H*',$token).pack("n",strlen($message)).$message;
+		}
 		return $msg;
 	}
 
