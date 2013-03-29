@@ -220,14 +220,11 @@ class spSimpleAPNSMessage
 	 */
 	public function payload($token, $identity=null, $expiry=null)
 	{
+		$token = str_replace(' ', '', $token);
 		if (!preg_match('#^[0-9a-f]{64}$#i', $token)) {
-			# Add Support  for 'xxxxxxxx xxxxxxxx xxxxxxxx xxxxxxxx xxxxxxxx xxxxxxxx xxxxxxxx xxxxxxxx'
-			if (preg_match('#^([0-9a-f]{8} ){7}[0-9a-f]{8}$#', $token)) {
-				$token = str_replace(' ', '', $token);
-			} else {
-				return false;
-			}
+			return false;
 		}
+
 		$message = $this->build();
 
 		if ($identity !== null && $expiry !== null) {
