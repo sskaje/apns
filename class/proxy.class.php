@@ -136,7 +136,7 @@ class spAPNSProxy
                 continue;
             }
             if (!isset($provider_apns_objs[$val['provider']])) {
-                $this->log(LOG_INFO, ' [DAEMON] connection for '.$val['provider'].' object not found.', $val);
+                $this->log(LOG_INFO, ' [DAEMON] connection object for '.$val['provider'].' not found.', $val);
                 continue;
             }
 
@@ -146,7 +146,7 @@ class spAPNSProxy
 
             $this->log(
                 LOG_INFO,
-                '[DAEMON] PUSH: TOKEN=' . $val['token'] . ' IDENTITY='.$val['identity'].' EXPIRE='.$val['expiry'].' MSG=' . $msgobj->build() . ' RET=' . $ret,
+                '[DAEMON] PUSH: PROVIDER='.$val['provider'].' TOKEN=' . $val['token'] . ' IDENTITY='.$val['identity'].' EXPIRE='.$val['expiry'].' MSG=' . $msgobj->build() . ' RET=' . $ret,
                 array()
             );
 
