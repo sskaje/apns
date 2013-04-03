@@ -1,6 +1,10 @@
 <?php
 
-
+/**
+ * Class spSimpleAPNS
+ *
+ * @author sskaje
+ */
 class spSimpleAPNS {
 	protected $servers = array(
 		'sandbox'	=>	array(
@@ -41,7 +45,7 @@ class spSimpleAPNS {
 
 		#
 		# Push
-		$fp = stream_socket_client($this->get_host($key), $errno, $error, 100, (STREAM_CLIENT_CONNECT | STREAM_CLIENT_PERSISTENT), $ctx);
+		$fp = stream_socket_client($this->get_host($key), $errno, $error, 100, (STREAM_CLIENT_ASYNC_CONNECT | STREAM_CLIENT_PERSISTENT), $ctx);
 		stream_set_blocking($fp, 0);
 		stream_set_write_buffer($fp, 0);
 
@@ -54,12 +58,32 @@ class spSimpleAPNS {
 		return $fp;
 	}
 
-	public function push(spSimpleAPNSMessage $messageobj, $tokens)
+	public function push(spAPNSMessage $messageobj, $tokens)
 	{
 		$tokens = (array) $tokens;
 		$message = '';
-		foreach ($tokens as $token) {
-			$payload = $messageobj->payload($token);
+        if (isset($tokens['token'])) {
+            $tokens = array($tokens);
+        }
+
+		foreach ($tokens as $t) {
+            $identity = null;
+            $expiry = null;
+
+            if (is_array($t)) {
+                if (!isset($t['token'])) {
+                    continue;
+                }
+                if (isset($t['identity'])) {
+                    $identity = $t['identity'];
+                }
+                if (isset($t['expiry'])) {
+                    $expiry = $t['expiry'];
+                }
+            } else {
+                $token = $t;
+            }
+			$payload = $messageobj->payload($token, $identity, $expiry);
 			if (!$payload) {
 				continue;
 			}
@@ -74,17 +98,25 @@ class spSimpleAPNS {
 		return $fwrite;
 	}
 
-	public function pushOne(spSimpleAPNSMessage $messageobj, $token, $identity=null, $expiry=null) 
+	public function pushOne(spAPNSMessage $messageobj, $token, $identity=null, $expiry=null) 
 	{
 		$message = $messageobj->payload($token, $identity, $expiry);
-                $fwrite = fwrite($this->connect('gateway'), $message);
-                return $fwrite;
+
+        if (empty($message)) {
+            return false;
+        }
+
+        $fwrite = fwrite($this->connect('gateway'), $message);
+        return $fwrite;
 
 	}
 
 	public function readErrorResponse()
 	{
 		$read = fread($this->connect('gateway'), 6);
+        if (!$read) {
+            return null;
+        }
 		$code = ord($read[1]);
 		$identity = unpack('N', substr($read, 2));
 		return array($code, $identity);
@@ -127,8 +159,10 @@ class spSimpleAPNS {
  *
  * @author sskaje
  */
-class spSimpleAPNSMessage
+class spAPNSMessage
 {
+    const TIMEOUT = 86400;
+
 	public function __construct($message=null)
 	{
 		if (!empty($message)) {
@@ -158,7 +192,9 @@ class spSimpleAPNSMessage
 				foreach ($array as $k=>$v) {
 					$this->addCustom($k, $v);
 				}
-			}
+			} else {
+                $this->setALert($message);
+            }
 		}
 	}
 
@@ -180,7 +216,7 @@ class spSimpleAPNSMessage
 	 * @param string $loc_key
 	 * @param array  $loc_args
 	 * @param string $launch_image
-	 * @return spSimpleAPNSMessage
+	 * @return spAPNSMessage
 	 */
 	public function setAlert($body, $action_loc_key=null, $loc_key='', array $loc_args=array(), $launch_image='')
 	{
@@ -195,7 +231,7 @@ class spSimpleAPNSMessage
 	 * Set Badge field
 	 *
 	 * @param int $badge
-	 * @return spSimpleAPNSMessage
+	 * @return spAPNSMessage
 	 */
 	public function setBadge($badge)
 	{
@@ -206,7 +242,7 @@ class spSimpleAPNSMessage
 	 * Set Sound field
 	 *
 	 * @param string $sound
-	 * @return spSimpleAPNSMessage
+	 * @return spAPNSMessage
 	 */
 	public function setSound($sound)
 	{
@@ -221,13 +257,19 @@ class spSimpleAPNSMessage
 	public function payload($token, $identity=null, $expiry=null)
 	{
 		$token = str_replace(' ', '', $token);
-		if (!preg_match('#^[0-9a-f]{64}$#i', $token)) {
+		if (!spAPNSUtils::CheckToken($token)) {
 			return false;
 		}
 
-		$message = $this->build();
+		$message = $this->build(true);
+        $current_time = time();
+        if (empty($expiry) || ($expiry < $current_time && $expiry > 86400 * 180)) {
+            $expiry = $current_time + self::TIMEOUT;
+        } else if ($expiry <= 86400 * 180) {
+            $expiry = $current_time + $expiry;
+        }
 
-		if ($identity !== null && $expiry !== null) {
+		if (!empty($identity)) {
 			$msg = chr(1).pack('N', (int) $identity).pack('N', (int) $expiry).pack("n",32).pack('H*',$token).pack("n",strlen($message)).$message;
 		} else {
 			$msg = chr(0).pack("n",32).pack('H*',$token).pack("n",strlen($message)).$message;
@@ -241,7 +283,7 @@ class spSimpleAPNSMessage
 	 *
 	 * @param string $key
 	 * @param mixed $data
-	 * @return spSimpleAPNSMessage
+	 * @return spAPNSMessage
 	*/
 	public function addCustom($key, $data)
 	{
@@ -250,8 +292,11 @@ class spSimpleAPNSMessage
 	}
 	/**
 	 * Build Message
+     *
+     * @param bool $return_json_string
+     * @return string|array
 	 */
-	public function build()
+	public function build($return_json_string=true)
 	{
 		$alert = $this->alert;
 		foreach ($alert as $k=>$v) {
@@ -280,7 +325,11 @@ class spSimpleAPNSMessage
 			$ret[$k] = $v;
 		}
 
-		return apns_json_encode($ret);
+        if ($return_json_string) {
+            return apns_json_encode($ret);
+        } else {
+            return $ret;
+        }
 	}
 }
 
@@ -295,4 +344,29 @@ if (!function_exists('apns_json_encode')) {
         return $s;
     }
 }
+
+
+
+/**
+ * Class spAPNSUtils
+ *
+ * @author sskaje
+ */
+class spAPNSUtils
+{
+    static public function CheckToken($token)
+    {
+        $token = str_replace(' ', '', $token);
+        return preg_match('#^[0-9a-f]{64}$#i', $token);
+    }
+}
+
+/**
+ * Class SPAPNS_Exception
+ *
+ * @author sskaje
+ */
+class SPAPNS_Exception extends Exception{}
+
+
 # EOF

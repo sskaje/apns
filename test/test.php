@@ -1,14 +1,14 @@
 <?php 
-require(__DIR__ . '/apns.php');
+require(__DIR__ . '/../class/apns.php');
 
 $ao1 = new spSimpleAPNS(__DIR__ . '/apple.apns.1.pem');
 $ao2 = new spSimpleAPNS(__DIR__ . '/apple.apns.2.pem');
 
 $token = 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx';
-$msg1 = new spSimpleAPNSMessage(array(
+$msg1 = new spAPNSMessage(array(
 	'aps'	=>	array('alert'=>	array('body'=>'test1=123')),
 ));
-$msg2 = new spSimpleAPNSMessage(array(
+$msg2 = new spAPNSMessage(array(
 	'aps'	=>	array('alert'=>	array('body'=>'test2-234')),
 ));
 $i = 0;
