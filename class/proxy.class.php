@@ -132,7 +132,7 @@ class spAPNSProxy
         do {
             $val = $this->q->pop();
             if (!isset($val['provider'])) {
-                usleep(500000);
+                usleep(100000);
                 continue;
             }
             if (!isset($provider_apns_objs[$val['provider']])) {
@@ -174,6 +174,7 @@ class spAPNSProxy
                     );
                 }
             }
+            usleep(100000);
         } while(!$daemon && (microtime(1) - $time0) <= 10);
     }
 
@@ -372,6 +373,10 @@ class spAPNSQueueRedis implements ifAPNSQueue
                 isset($config['timeout']) ? $config['timeout'] : 3
             );
         }
+    }
+    public function __destruct()
+    {
+        $this->redis->close();
     }
 
     public function push($key, $val)
