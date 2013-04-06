@@ -33,17 +33,17 @@ class spAPNSProxyClient
      * push one
      * @param string $token
      * @param mixed $message
-     * @param int $identity
+     * @param int $identifier
      * @param int $expiry
      * @return mixed
      * @throws SPAPNS_Exception
      */
-    public function pushOne($token, $message, $identity=null, $expiry=null)
+    public function pushOne($token, $message, $identifier=null, $expiry=null)
     {
         /*
             {
                 token: string,
-                identity: int/optional,
+                identifier: int/optional,
                 expiry: int/optional,
                 message: {
                     aps:{}
@@ -58,7 +58,7 @@ class spAPNSProxyClient
         return $this->do_push(array(
             array(
                 'token'     =>  $token,
-                'identity'  =>  (int) $identity,
+                'identifier'  =>  (int) $identifier,
                 'expiry'    =>  (int) $expiry,
                 'message'   =>  (array) $msgobj->build(false),
             )

@@ -14,11 +14,11 @@ class spAPNSProxy
     /**
      * @var spAPNSProxyConfig
      */
-    protected $config;
+    public $config;
     /**
      * @var spAPNSQueue
      */
-    protected $q;
+    public $q;
 
     public function __construct(spAPNSProxyConfig $config)
     {
@@ -29,6 +29,8 @@ class spAPNSProxy
             'port'  =>  $config->queue_port,
             'timeout'   =>  $config->queue_timeout,
             'key'   =>  $config->queue_key,
+            'block_read'    =>  $config->queue_block_read,
+            'block_read_timeout'    =>  $config->queue_block_read_timeout,
         );
 
         $this->q = new spAPNSQueue($config->queue_handler, $queue_config);
@@ -50,7 +52,7 @@ class spAPNSProxy
         data: [
             {
                 token: string,
-                identity: int/optional,
+                identifier: int/optional,
                 expiry: int/optional,
                 message: {
                     aps:{}
@@ -89,11 +91,11 @@ class spAPNSProxy
                 }
 
                 $array['provider'] = $provider;
-                if (!isset($array['identity']) || empty($array['identity'])) {
-                    $array['identity'] = crc32(uniqid('apns_proxy', true));
+                if (!isset($array['identifier']) || empty($array['identifier'])) {
+                    $array['identifier'] = crc32(uniqid('apns_proxy', true));
                 }
-                $array['identity'] = (int) $array['identity'];
-                $ret_identities[] = $array['identity'];
+                $array['identifier'] = (int) $array['identifier'];
+                $ret_identities[] = $array['identifier'];
 
                 if (!isset($array['expiry'])) {
                     $array['expiry'] = 0;
@@ -110,75 +112,36 @@ class spAPNSProxy
     }
 
     /**
-     * read data from queue and send to apns
-     *
-     * @param bool $daemon
-     * @param int $count
-     * @param int $timeout
+     * Run as daemon
      */
-    public function exec($daemon=false, $count=10000, $timeout=75)
+    public function daemon()
     {
-        $c = 0;
-        $time0 = microtime(1);
-
-        $providers = $this->config->getAllProviders();
-
-        $provider_apns_objs = array();
-
-        foreach ($providers as $k=>$v) {
-            $provider_apns_objs[$k] = new spSimpleAPNS($v['cert_path'], $v['dev_mode']);
+        $config = array(
+            'default'   =>  'spAPNSProxyDaemon_default',
+            'simple'    =>  'spAPNSProxyDaemon_simple',
+        );
+        if (!isset($config[$this->config->daemon])) {
+            throw new SPAPNS_Exception('bad daemon');
         }
 
-        do {
-            $val = $this->q->pop();
-            if (!isset($val['provider'])) {
-                usleep(100000);
-                continue;
-            }
-            if (!isset($provider_apns_objs[$val['provider']])) {
-                $this->log(LOG_INFO, ' [DAEMON] connection object for '.$val['provider'].' not found.', $val);
-                continue;
-            }
+        if (!class_exists($config[$this->config->daemon])) {
+            require(__DIR__ . '/daemon/' . $this->config->daemon . '.daemon.php');
+        }
 
-            $msgobj = new spAPNSMessage($val['message']);
+        fwrite(STDERR, "Use {$this->config->daemon}\n");
 
-            $ret = $provider_apns_objs[$val['provider']]->pushOne($msgobj, $val['token'], $val['identity'], $val['expiry']);
-
-            $this->log(
-                LOG_INFO,
-                '[DAEMON] PUSH: PROVIDER='.$val['provider'].' TOKEN=' . $val['token'] . ' IDENTITY='.$val['identity'].' EXPIRE='.$val['expiry'].' MSG=' . $msgobj->build() . ' RET=' . $ret,
-                array()
-            );
-
-            $error_response = $provider_apns_objs[$val['provider']]->readErrorResponse();
-            if ($error_response) {
-                $this->log(
-                    LOG_ERR,
-                    '[DAEMON] ERROR RESPONSE: CODE='.$error_response[0] . ' IDENTITY='.$error_response[1],
-                    array()
-                );
-            }
-
-        } while( $daemon || ($c++ < $count && (microtime(1) - $time0) <= $timeout));
-
-        # an extra 10 seconds for error response packets
-        $time0 = microtime(1);
-        do {
-            foreach ($provider_apns_objs as $v) {
-                $error_response = $v->readErrorResponse();
-                if ($error_response) {
-                    $this->log(
-                        LOG_ERR,
-                        '[DAEMON] ERROR RESPONSE: CODE='.$error_response[0] . ' IDENTITY='.$error_response[1],
-                        array()
-                    );
-                }
-            }
-            usleep(100000);
-        } while(!$daemon && (microtime(1) - $time0) <= 10);
+        $daemon = new $config[$this->config->daemon]($this);
+        $daemon->daemon();
     }
 
-    protected function log($level, $msg, $var=null)
+    /**
+     * log
+     *
+     * @param $level
+     * @param $msg
+     * @param null $var
+     */
+    public function log($level, $msg, $var=null)
     {
         $logfiles = array(
             LOG_ERR     =>  'err.log',
@@ -191,6 +154,43 @@ class spAPNSProxy
             FILE_APPEND
         );
     }
+}
+
+/**
+ * Class spAPNSProxyDaemon
+ * Abstract class for daemons
+ *
+ */
+abstract class spAPNSProxyDaemon
+{
+    /**
+     * @var spAPNSProxy
+     */
+    protected $proxy;
+    /**
+     * daemon name
+     *
+     * @var string
+     */
+    protected $daemon_name = '';
+    /**
+     * defaults
+     *
+     * @var array
+     */
+    protected $defaults = array();
+
+    public function __construct(spAPNSProxy $proxy)
+    {
+        $this->proxy = $proxy;
+
+        $this->config = spAPNSProxyConfig::parseDefaults(
+            $this->proxy->config->getDaemon($this->daemon_name),
+            $this->defaults
+        );
+    }
+
+    abstract public function daemon();
 
 }
 
@@ -201,19 +201,25 @@ class spAPNSProxy
  */
 class spAPNSProxyConfig
 {
-    protected $global;
-    protected $provider;
+    protected $global = array();
+    protected $provider = array();
+    protected $daemon = array();
 
-    protected $global_defaults = array(
+    static protected $global_defaults = array(
         'log_path'      =>  null,
         'queue_handler' =>  'redis',
         'queue_host'    =>  '127.0.0.1',
         'queue_port'    =>  6379,
         'queue_timeout' =>  2,
         'queue_key'     =>  'apns_proxy_queue',
+        'queue_block_read'  =>  0,
+        'queue_block_read_timeout'  =>  5,
+
+        'daemon'        =>  'default',
+
     );
 
-    protected $provider_defaults = array(
+    static protected $provider_defaults = array(
         'cert_path' =>  null,
         'dev_mode'  =>  0,
         'auth_user' =>  '',
@@ -228,20 +234,31 @@ class spAPNSProxyConfig
             $ini_array = parse_ini_string($ini_data, true);
         }
 
-        $this->global = $this->parse_defaults($ini_array['global'], $this->global_defaults);
+        $this->global = self::parseDefaults($ini_array['global'], self::$global_defaults);
+
 
         foreach ($ini_array as $k=>$v) {
-            if (strpos($k, 'apns:') == 0) {
-                $config = $this->parse_defaults($v, $this->provider_defaults);
+            if (strpos($k, 'apns:') === 0) {
+                $config = self::parseDefaults($v, self::$provider_defaults);
 
                 if ($config != false) {
                     $key = substr($k, 5);
                     $this->provider[$key] = $config;
                 }
+            } else if (strpos($k, 'daemon:') === 0) {
+                $this->daemon[substr($k, 7)] = $v;
             }
         }
     }
-    protected function parse_defaults($config, $defaults)
+
+    /**
+     * Parse default config
+     *
+     * @param $config
+     * @param $defaults
+     * @return array|bool
+     */
+    static public function parseDefaults($config, $defaults)
     {
         $valid_provider_config = true;
 
@@ -272,10 +289,42 @@ class spAPNSProxyConfig
         }
     }
 
+    /**
+     * Get daemon config by daemon name
+     *
+     * @param string $daemon
+     * @return null
+     */
+    public function getDaemon($daemon)
+    {
+        return isset($this->daemon[$daemon]) ? $this->daemon[$daemon] : null;
+    }
+
+    /**
+     * Get all daemon config
+     *
+     * @return array
+     */
+    public function getAllDaemons()
+    {
+        return $this->daemon;
+    }
+    /**
+     * Get provider config by provider name
+     *
+     * @param string $provider
+     * @return null
+     */
     public function getProvider($provider)
     {
         return isset($this->provider[$provider]) ? $this->provider[$provider] : null;
     }
+
+    /**
+     * Get all provider config
+     *
+     * @return array
+     */
     public function getAllProviders()
     {
         return $this->provider;
@@ -299,107 +348,5 @@ class spAPNSProxyConfig
     }
 }
 
-define('SP_APNSQUEUE_HANDLER_REDIS', 'redis');
-/**
- * Class spAPNSQueue
- *
- * @author sskaje
- */
-class spAPNSQueue
-{
-    /**
-     * @var ifAPNSQueue
-     */
-    static protected $q;
 
-    public function __construct($handler, $config)
-    {
-        if ($handler == SP_APNSQUEUE_HANDLER_REDIS) {
-            $handlerClass = 'spAPNSQueueRedis';
-        } else {
-            throw new SPAPNS_Exception('Bad queue handler', 100001);
-        }
-
-        $this->q = new $handlerClass($config);
-    }
-
-    protected $key = 'apns_proxy_queue';
-
-    public function push($val)
-    {
-        return $this->q->push($this->key, $val);
-    }
-
-    public function pop()
-    {
-        return $this->q->pop($this->key);
-    }
-}
-
-/**
- * Class ifAPNSQueue
- */
-interface ifAPNSQueue
-{
-    public function __construct($config);
-    public function push($key, $val);
-    public function pop($key);
-}
-
-/**
- * Class spAPNSQueueRedis
- */
-class spAPNSQueueRedis implements ifAPNSQueue
-{
-    protected $redis;
-
-    public function __construct($config)
-    {
-        if (!class_exists('redis')) {
-            throw new SPAPNS_Exception('Please enable redis extension.', 101001);
-        }
-
-        $this->redis = new Redis;
-        if (!isset($config['host']) || empty($config['host'])) {
-            $config['host'] = '127.0.0.1';
-        }
-        # unix socket file
-        if ($config['host'][0] == '/') {
-            $this->redis->connect($config['host']);
-        } else {
-            $this->redis->connect(
-                $config['host'],
-                isset($config['port']) ? $config['port'] : 6379,
-                isset($config['timeout']) ? $config['timeout'] : 3
-            );
-        }
-    }
-    public function __destruct()
-    {
-        $this->redis->close();
-    }
-
-    public function push($key, $val)
-    {
-        return $this->redis->lpush($key, serialize($val));
-    }
-
-    public function pop($key)
-    {
-        return unserialize($this->redis->rpop($key));
-    }
-}
-
-
-if (!defined('LOG_INFO')) {
-    define ('LOG_EMERG', 0);
-    define ('LOG_ALERT', 1);
-    define ('LOG_CRIT', 2);
-    define ('LOG_ERR', 3);
-    define ('LOG_WARNING', 4);
-    define ('LOG_NOTICE', 5);
-    define ('LOG_INFO', 6);
-    define ('LOG_DEBUG', 7);
-
-}
 # EOF
