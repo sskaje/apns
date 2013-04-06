@@ -5,9 +5,6 @@
  *
  * @author sskaje
  */
-if (!class_exists('SPAPNS_Exception')) {
-    require(__DIR__ . '/apns.class.php');
-}
 
 class spAPNSProxy
 {
@@ -62,23 +59,23 @@ class spAPNSProxy
         */
         try {
             if (!isset($_GET['provider'])) {
-                throw new SPAPNS_Exception('provider cannot be empty', 500001);
+                throw new SPAPNS_Exception('provider cannot be empty', 300001);
             }
             $provider = $_GET['provider'];
             $provider_config = $this->config->getProvider($provider);
             if (empty($provider_config)) {
-                throw new SPAPNS_Exception('provider not available', 500002);
+                throw new SPAPNS_Exception('provider not available', 300002);
             }
 
             if (
                 ($provider_config['auth_user'] && (empty($_GET['user']) || $provider_config['auth_user'] != $_GET['user'])) &&
                 ($provider_config['auth_pass'] && (empty($_GET['pass']) || $provider_config['auth_pass'] != md5($_GET['pass'])))
             ) {
-                throw new SPAPNS_Exception('auth failed', 500003);
+                throw new SPAPNS_Exception('auth failed', 300003);
             }
 
             if (empty($_POST['json']) || !($json = json_decode($_POST['json'], true)) || !is_array($json)) {
-                throw new SPAPNS_Exception('json cannot be empty', 500004);
+                throw new SPAPNS_Exception('json cannot be empty', 300004);
             }
 
             $ret_identities = array();
@@ -116,21 +113,22 @@ class spAPNSProxy
      */
     public function daemon()
     {
-        $config = array(
-            'default'   =>  'spAPNSProxyDaemon_default',
-            'simple'    =>  'spAPNSProxyDaemon_simple',
-        );
-        if (!isset($config[$this->config->daemon])) {
-            throw new SPAPNS_Exception('bad daemon');
+        $class_name = $this->config->daemon;
+        $class_file = __DIR__ . '/daemon/' . $this->config->daemon . '.daemon.php';
+
+        if (!class_exists($class_name)) {
+            if (!is_file($class_file)) {
+                throw new SPAPNS_Exception("Daemon file '{$class_file}' not exists", 301001);
+            }
+            # load class
+            require($class_file);
+
+            if (!class_exists($class_name)) {
+                throw new SPAPNS_Exception("Daemon class '{$class_name}' not found", 301002);
+            }
         }
 
-        if (!class_exists($config[$this->config->daemon])) {
-            require(__DIR__ . '/daemon/' . $this->config->daemon . '.daemon.php');
-        }
-
-        fwrite(STDERR, "Use {$this->config->daemon}\n");
-
-        $daemon = new $config[$this->config->daemon]($this);
+        $daemon = new $class_name($this);
         $daemon->daemon();
     }
 
@@ -229,6 +227,9 @@ class spAPNSProxyConfig
     public function __construct($ini_data, $is_file=true)
     {
         if ($is_file) {
+            if (!is_file($ini_data)) {
+                throw new SPAPNS_Exception("Configuration file {$ini_data} not found", 500001);
+            }
             $ini_array = parse_ini_file($ini_data, true);
         } else {
             $ini_array = parse_ini_string($ini_data, true);

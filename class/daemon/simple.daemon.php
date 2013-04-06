@@ -8,7 +8,7 @@
  */
 class spAPNSProxyDaemon_simple extends spAPNSProxyDaemon
 {
-    protected $daemon_name = 'short';
+    protected $daemon_name = 'simple';
     protected $defaults = array(
         'run_as_daemon' => 0,
         'loop_limit' => 100000,

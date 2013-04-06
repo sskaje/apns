@@ -72,7 +72,7 @@ class spAPNSQueue
         if ($handler == SP_APNSQUEUE_HANDLER_REDIS) {
             $handlerClass = 'spAPNSQueueRedis';
         } else {
-            throw new SPAPNS_Exception('Bad queue handler', 100001);
+            throw new SPAPNS_Exception('Bad queue handler', 200001);
         }
 
         $this->key = $config['key'];
@@ -115,7 +115,7 @@ class spAPNSQueueRedis implements ifAPNSQueue
     public function __construct($config)
     {
         if (!class_exists('redis')) {
-            throw new SPAPNS_Exception('Please enable redis extension.', 101001);
+            throw new SPAPNS_Exception('Please enable redis extension.', 201001);
         }
 
         $this->redis = new Redis;

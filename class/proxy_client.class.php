@@ -51,7 +51,7 @@ class spAPNSProxyClient
             }
          */
         if (!spAPNSUtils::CheckToken($token)) {
-            throw new SPAPNS_Exception('推送token不合法', 300001);
+            throw new SPAPNS_Exception('推送token不合法', 400001);
         }
         $msgobj = new spAPNSMessage($message);
 
@@ -77,10 +77,10 @@ class spAPNSProxyClient
         $post_array = array();
         foreach ($array as $v) {
             if (!isset($v['token']) || !spAPNSUtils::CheckToken($v['token'])) {
-                throw new SPAPNS_Exception('推送token不合法', 300101);
+                throw new SPAPNS_Exception('推送token不合法', 400101);
             }
             if (!isset($v['message'])) {
-                throw new SPAPNS_Exception('推送消息不合法', 300102);
+                throw new SPAPNS_Exception('推送消息不合法', 400102);
             }
 
             $msgobj = new spAPNSMessage($v['message']);
