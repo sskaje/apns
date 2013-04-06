@@ -113,7 +113,7 @@ class spAPNSProxy
      */
     public function daemon()
     {
-        $class_name = $this->config->daemon;
+        $class_name = 'spAPNSProxyDaemon_' . $this->config->daemon;
         $class_file = __DIR__ . '/daemon/' . $this->config->daemon . '.daemon.php';
 
         if (!class_exists($class_name)) {
