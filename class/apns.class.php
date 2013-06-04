@@ -180,6 +180,40 @@ class spSimpleAPNS {
 	}
 
     /**
+     * Performs socket read
+     *
+     * @param string $key
+     * @param int $length
+     * @param resource $connection
+     * @return string
+     */
+    protected function read($key, $length, &$connection=null)
+    {
+        if (!isset($connection) || !is_resource($connection)) {
+            $connection = $this->connect($key);
+        }
+        $result = fread($connection, $length);
+        return $result;
+    }
+
+    /**
+     * Performs socket write
+     *
+     * @param string $key
+     * @param data $data
+     * @param resource $connection
+     * @return int
+     */
+    protected function write($key, $data, &$connection=null)
+    {
+        if (!isset($connection) || !is_resource($connection)) {
+            $connection = $this->connect($key);
+        }
+        $result = fwrite($connection, $data);
+        return $result;
+    }
+
+    /**
      * Push one message to many tokens
      *
      * @param spAPNSMessage $messageobj
@@ -223,11 +257,7 @@ class spSimpleAPNS {
 			return false;
 		}
 
-        if (!isset($connection)) {
-            $connection = $this->connect('gateway');
-        }
-
-		$fwrite = fwrite($connection, $message);
+		$fwrite = $this->write('gateway', $message, $connection);
 		return $fwrite;
 	}
 
@@ -249,15 +279,72 @@ class spSimpleAPNS {
 			return false;
 		}
 
+        $fwrite = $this->write('gateway', $message, $connection);
+		return $fwrite;
+	}
 
-        if (!isset($connection)) {
-            $connection = $this->connect('gateway');
+    const BATCH_SELECT_TIMEOUT = 10;
+
+    /**
+     * Push more than one message
+     *
+     * @param spAPNSMessageBundle $bundleobj
+     * @param int $retry_count
+     * @param null $connection
+     * @return array
+     */
+    public function pushBatch(spAPNSMessageBundle $bundleobj, $retry_count=1, &$connection=null)
+    {
+        if (!$bundleobj->length()) {
+            return array();
         }
 
-        $fwrite = fwrite($connection, $message);
-		return $fwrite;
+        $error_identifiers = array();
+        $identifiers = $bundleobj->getIdentifiers();
+        $retry_counter = array_fill_keys($identifiers, 0);
 
-	}
+        do {
+            if ($bundleobj->length()) {
+
+                $message = $bundleobj->payload();
+
+                $r = 0;
+                do {
+                    $fwrite = $this->write('gateway', $message, $connection);
+                } while(!$fwrite && ++$r < 10);
+
+                if (!$fwrite) {
+                    # error ?
+                }
+
+                $tv_sec = self::BATCH_SELECT_TIMEOUT;
+                $tv_usec = null;
+                $r = array($connection);
+                $we = null;
+                $numChanged = stream_select($r, $we, $we, $tv_sec, $tv_usec);		//参数为引用，所以得先命名参数
+
+                if($numChanged > 0) {
+                    $error = $this->readErrorResponse($connection);
+
+                    if (is_array($error) && isset($error['identifier']) && isset($error['command']) && $error['command'] == 8) {
+                        if ($retry_counter[$error['identifier']] < $retry_count) {
+                            $bundleobj->trimFrom($error['identifier'], false);
+                            ++ $retry_counter[$error['identifier']];
+                        } else {
+                            $bundleobj->trimFrom($error['identifier'], true);
+                            $error_identifiers[$error['identifier']] = $error['command'];
+                        }
+                        continue;
+                    }
+                }
+            }
+
+            break;
+        } while(1);
+
+        return $error_identifiers;
+    }
+
 
     /**
      * Read error response
@@ -267,11 +354,7 @@ class spSimpleAPNS {
      */
     public function readErrorResponse(&$connection=null)
 	{
-        if (!isset($connection)) {
-            $connection = $this->connect('gateway');
-        }
-
-		$read = fread($connection, 6);
+		$read = $this->read('gateway', 6, $connection);
 		if (!$read) {
 			return null;
 		}

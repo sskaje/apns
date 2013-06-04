@@ -1,5 +1,5 @@
 <?php 
-require(__DIR__ . '/../class/apns.php');
+require(__DIR__ . '/../class/apns.inc.php');
 
 $ao1 = new spSimpleAPNS(__DIR__ . '/apple.apns.1.pem');
 $ao2 = new spSimpleAPNS(__DIR__ . '/apple.apns.2.pem');

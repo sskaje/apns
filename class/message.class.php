@@ -178,5 +178,127 @@ class spAPNSMessage
     }
 }
 
+/**
+ * Class spAPNSMessageBundle
+ * Process APNS push in batch mode
+ *
+ */
+class spAPNSMessageBundle
+{
+    protected $pointer     = 0;
+
+    protected $objects     = array();
+    protected $tokens      = array();
+    protected $identifiers = array();
+    protected $expiry      = array();
+    protected $pointers    = array();
+
+    public function __construct()
+    {
+        $this->reset();
+    }
+
+    /**
+     * Reset internal variables
+     */
+    public function reset()
+    {
+        $this->pointer     = 0;
+
+        $this->objects     = array();
+        $this->tokens      = array();
+        $this->identifiers = array();
+        $this->expiry      = array();
+        $this->pointers    = array();
+    }
+
+    /**
+     * Add message to bundle
+     *
+     * @param spAPNSMessage $message_object
+     * @param string $token
+     * @param int $identifier
+     * @param int $expiry
+     */
+    public function add(spAPNSMessage $message_object, $token, $identifier=null, $expiry=null)
+    {
+        $this->objects[$this->pointer]     = $message_object;
+        $this->tokens[$this->pointer]      = $token;
+        $this->expiry[$this->pointer]      = $expiry;
+        # find me back...lol
+        $this->identifiers[$this->pointer] = $identifier;
+        $this->pointers[$identifier]       = $this->pointer;
+
+        ++$this->pointer;
+    }
+
+    /**
+     * Build APNS payload
+     *
+     * @return string
+     */
+    public function payload()
+    {
+        $ret = '';
+        foreach ($this->objects as $k=>$v) {
+            $ret .= $v->payload(
+                $this->tokens[$k],
+                $this->identifiers[$k],
+                $this->expiry[$k]
+            );
+        }
+
+        return $ret;
+    }
+
+    /**
+     * Get count of message objects
+     *
+     * @return int
+     */
+    public function length()
+    {
+        return count($this->objects);
+    }
+
+    /**
+     * Get identifiers
+     *
+     * @return array
+     */
+    public function getIdentifiers()
+    {
+        return $this->identifiers;
+    }
+
+    /**
+     * Remove all objects before specified identifier
+     *
+     * @param int $identifier
+     * @param bool $skip
+     * @return int
+     */
+    public function trimFrom($identifier, $skip=false)
+    {
+        $ptr = $this->pointer[$identifier];
+        if ($skip) {
+            $ptr += 1;
+        }
+        for ($i=0; $i<$ptr; $i++) {
+            if (isset($this->objects[$i])) {
+                unset(
+                    $this->objects[$i],
+                    $this->tokens[$i],
+                    $this->expiry[$i],
+                    $this->pointers[$this->identifiers[$i]],
+                    $this->identifiers[$i]
+                );
+            }
+        }
+
+        return $this->length();
+    }
+}
+
 
 # EOF

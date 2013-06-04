@@ -33,7 +33,7 @@ class spAPNSProxyDaemon_default extends spAPNSProxyDaemon
         do {
             $val = $this->proxy->q->pop();
             if (!isset($val['provider'])) {
-                usleep(100000);
+                usleep(10000);
                 continue;
             }
             if (!isset($provider_apns_objs[$val['provider']])) {

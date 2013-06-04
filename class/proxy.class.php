@@ -95,7 +95,7 @@ class spAPNSProxy
                 $ret_identities[] = $array['identifier'];
 
                 if (!isset($array['expiry'])) {
-                    $array['expiry'] = 0;
+                    $array['expiry'] = 86400 * 3;
                 }
                 $array['expiry'] = (int) $array['expiry'];
 
@@ -148,7 +148,7 @@ class spAPNSProxy
         );
         file_put_contents(
             $this->config->log_path . '/' . $logfiles[$level],
-            date('Y-m-d H:i:s ').trim($msg) . ($var != null ? var_export($var, 1) : '') . "\n\n",
+            date('Y-m-d H:i:s ').trim($msg) . ($var != null ? var_export($var, 1) : '') . "\n",
             FILE_APPEND
         );
     }

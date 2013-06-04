@@ -155,24 +155,31 @@ class spAPNSQueueRedis implements ifAPNSQueue
     public function pop($key)
     {
         if ($this->block_read) {
-            return unserialize($this->redis->brpop($key, $this->block_read_timeout));
+            $ret = $this->redis->brpop($key, $this->block_read_timeout);
+            if (is_array($ret)) {
+                $ret = unserialize($ret[1]);
+            } else {
+                $ret = unserialize($ret);
+            }
         } else {
-            return unserialize($this->redis->rpop($key));
+            $ret = $this->redis->rpop($key);
+            $ret = unserialize($ret);
         }
+        return $ret;
     }
 
 }
 
 
 if (!defined('LOG_INFO')) {
-    define ('LOG_EMERG', 0);
-    define ('LOG_ALERT', 1);
-    define ('LOG_CRIT', 2);
-    define ('LOG_ERR', 3);
-    define ('LOG_WARNING', 4);
-    define ('LOG_NOTICE', 5);
-    define ('LOG_INFO', 6);
-    define ('LOG_DEBUG', 7);
+    define('LOG_EMERG',   0);
+    define('LOG_ALERT',   1);
+    define('LOG_CRIT',    2);
+    define('LOG_ERR',     3);
+    define('LOG_WARNING', 4);
+    define('LOG_NOTICE',  5);
+    define('LOG_INFO',    6);
+    define('LOG_DEBUG',   7);
 }
 
 # EOF

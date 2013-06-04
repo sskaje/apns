@@ -14,6 +14,7 @@ class spAPNSProxyClient
     protected $provider;
     protected $user;
     protected $pass;
+    protected $server_ip;
 
     /**
      * @param string $server_url
@@ -21,12 +22,13 @@ class spAPNSProxyClient
      * @param string $user
      * @param string $pass
      */
-    public function __construct($server_url, $provider, $user, $pass)
+    public function __construct($server_url, $provider, $user, $pass, $server_ip='')
     {
         $this->server_url = $server_url;
         $this->provider = $provider;
         $this->user = $user;
         $this->pass = $pass;
+        $this->server_ip = $server_ip;
     }
 
     /**
@@ -100,16 +102,26 @@ class spAPNSProxyClient
      */
     protected function do_push(array $array)
     {
-        $post = 'json=' . json_encode($array);
-        $api_url =  $this->server_url . '?provider=' . $this->provider . '&user=' . $this->user . '&pass=' . $this->pass;
         $ch = curl_init();
-        curl_setopt($ch, CURLOPT_URL, $api_url);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+
+        $post = 'json=' . json_encode($array);
+        if (!empty($this->server_ip)) {
+            $host = parse_url($this->server_url, PHP_URL_HOST);
+            $url = str_replace($host, $this->server_ip, $this->server_url);
+
+            curl_setopt($ch, CURLOPT_HTTPHEADER, array('Host: ' . $host));
+        } else {
+            $url = $this->server_url;
+        }
+
+        $api_url =  $url . '?provider=' . $this->provider . '&user=' . $this->user . '&pass=' . $this->pass;
+        curl_setopt($ch, CURLOPT_URL, $api_url);
         curl_setopt($ch, CURLOPT_POST, 1);
         curl_setopt($ch, CURLOPT_POSTFIELDS, $post);
         $result = curl_exec($ch);
-        curl_close($ch);
 
+        curl_close($ch);
         return json_decode($result, true);
     }
 }
