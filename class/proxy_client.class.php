@@ -10,6 +10,10 @@ if (!class_exists('SPAPNS_Exception')) {
  */
 class spAPNSProxyClient
 {
+    public $keep_conn = true;
+    static private $connections = array();
+
+
     protected $server_url;
     protected $provider;
     protected $user;
@@ -29,6 +33,15 @@ class spAPNSProxyClient
         $this->user = $user;
         $this->pass = $pass;
         $this->server_ip = $server_ip;
+    }
+
+    public function __destruct()
+    {
+        if (0 && $this->keep_conn && !empty($this->connections)) {
+            foreach ($this->connections as $ch) {
+                curl_close($ch);
+            }
+        }
     }
 
     /**
@@ -102,8 +115,24 @@ class spAPNSProxyClient
      */
     protected function do_push(array $array)
     {
-        $ch = curl_init();
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+        if ($this->keep_conn) {
+            if (!empty($this->server_ip)) {
+                $conn_key = $this->server_ip;
+            } else {
+                $conn_key = parse_url($this->server_url, PHP_URL_HOST);
+            }
+
+            if (!isset(self::$connections[$conn_key])) {
+                $ch = curl_init();
+                curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+                self::$connections[$conn_key] = $ch;
+            }
+
+            $ch = self::$connections[$conn_key];
+        } else {
+            $ch = curl_init();
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+        }
 
         $post = 'json=' . json_encode($array);
         if (!empty($this->server_ip)) {
@@ -121,7 +150,10 @@ class spAPNSProxyClient
         curl_setopt($ch, CURLOPT_POSTFIELDS, $post);
         $result = curl_exec($ch);
 
-        curl_close($ch);
+        # DO NOT CLOSE cURL resource if connection is kept on
+        if (!$this->keep_conn) {
+            curl_close($ch);
+        }
         return json_decode($result, true);
     }
 }
