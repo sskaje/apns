@@ -59,8 +59,18 @@ class spAPNSProxyDaemon_advanced extends spAPNSProxyDaemon
             } while(++$l < $this->config['read_once']);
 
             foreach ($bundles as $k=>$msgbndl) {
+                $error_identifiers = array();
+
                 if ($msgbndl->length()) {
-                    $error_identifiers = $provider_apns_objs[$k]->pushBatch($msgbndl, $this->config['retry']);
+                    try{
+                        $error_identifiers = $provider_apns_objs[$k]->pushBatch($msgbndl, $this->config['retry']);
+                    } catch (Exception $e) {
+                        $this->proxy->log(
+                            LOG_EMERG,
+                            '[ADVANCED] Exception: Code='.$e->getCode() . ' Message='.$e->getMessage() . " Provider=" . $k,
+                            array()
+                        );
+                    }
                     # log
                     foreach ($error_identifiers as $identifier=>$status_code) {
                         $this->proxy->log(

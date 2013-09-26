@@ -165,6 +165,9 @@ class spSimpleAPNS {
 			$this->connect_flag,
 			$ctx
 		);
+        if (!$fp) {
+            throw new SPAPNS_Exception('Connection failed. key='.$key, 100002);
+        }
 		# blocking
 		stream_set_blocking($fp, $this->options[self::OPT_BLOCKING_MODE]);
 		
@@ -371,7 +374,8 @@ class spSimpleAPNS {
     public function feedback($callback, $daemon=false, $loop_count=100000)
 	{
 		$c = 0;
-		while (($daemon || ++$c < $loop_count) && ($feedback = fread($this->connect('feedback'), 38))) {
+        $fp = $this->connect('feedback');
+		while (($daemon || ++$c < $loop_count) && ($feedback = fread($fp, 38))) {
             $fb_array = unpack('Ntimestamp/ntokenLength/H*token', $feedback);
 
 			if(!empty($fb_array['token'])){

@@ -144,7 +144,7 @@ class spAPNSProxy
         $logfiles = array(
             LOG_ERR     =>  'err.log',
             LOG_INFO    =>  'info.log',
-
+            LOG_EMERG   =>  'emerg.log',
         );
         file_put_contents(
             $this->config->log_path . '/' . $logfiles[$level],

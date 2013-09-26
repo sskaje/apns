@@ -46,8 +46,17 @@ RETRY:
             $connection = null;
 
             $msgobj = new spAPNSMessage($val['message']);
-            $ret = $apnsobj->pushOne($msgobj, $val['token'], $val['identifier'], $val['expiry'], $connection);
-
+            try{
+                $ret = $apnsobj->pushOne($msgobj, $val['token'], $val['identifier'], $val['expiry'], $connection);
+            } catch (Exception $e) {
+                $this->proxy->log(
+                    LOG_EMERG,
+                    '[SIMPLE] Exception: Code='.$e->getCode() . ' Message='.$e->getMessage() . " Provider=" . $val['provider'],
+                    array()
+                );
+                # make ret looks like true
+                $ret = 'ERROR';
+            }
             $this->proxy->log(
                 LOG_INFO,
                 '[SIMPLE] PUSH: PROVIDER='.$val['provider'].' TOKEN=' . $val['token'] . ' IDENTIFIER='.$val['identifier'].' EXPIRE='.$val['expiry'].' MSG=' . $msgobj->build() . ' RET=' . $ret . ' RETRY='.$retry,

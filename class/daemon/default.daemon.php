@@ -46,7 +46,17 @@ class spAPNSProxyDaemon_default extends spAPNSProxyDaemon
             $retry = 0;
             do {
                 # non-blocking push
-                $ret = $provider_apns_objs[$val['provider']]->pushOne($msgobj, $val['token'], $val['identifier'], $val['expiry']);
+                try {
+                    $ret = $provider_apns_objs[$val['provider']]->pushOne($msgobj, $val['token'], $val['identifier'], $val['expiry']);
+                } catch (Exception $e) {
+                    $this->proxy->log(
+                        LOG_EMERG,
+                        '[DAEMON] Exception: Code='.$e->getCode() . ' Message='.$e->getMessage() . " Provider=" . $val['provider'],
+                        array()
+                    );
+                    # make ret looks like true
+                    $ret = 'ERROR';
+                }
 
                 # reconnect on false
                 if (!$ret) {
@@ -88,8 +98,16 @@ class spAPNSProxyDaemon_default extends spAPNSProxyDaemon
         # an extra 10 seconds for error response packets
         $time0 = microtime(1);
         do {
-            foreach ($provider_apns_objs as $v) {
-                $error_response = $v->readErrorResponse();
+            foreach ($provider_apns_objs as $k=>$v) {
+                try{
+                    $error_response = $v->readErrorResponse();
+                } catch (Exception $e) {
+                    $this->proxy->log(
+                        LOG_EMERG,
+                        '[DAEMON] Exception: Code='.$e->getCode() . ' Message='.$e->getMessage() . " Provider=" . $k,
+                        array()
+                    );
+                }
                 if ($error_response) {
                     $this->proxy->log(
                         LOG_ERR,
