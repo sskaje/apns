@@ -27,7 +27,7 @@ class spAPNSProxyDaemon_advanced extends spAPNSProxyDaemon
 
         $bundles = array();
         foreach ($providers as $k=>$v) {
-            $provider_apns_objs[$k] = new spSimpleAPNS($v['cert_path'], $v['dev_mode']);
+            $provider_apns_objs[$k] = new spSimpleAPNS($v['cert_path'], $v['cert_pass'], $v['dev_mode']);
             $provider_apns_objs[$k]->setOption(spSimpleAPNS::OPT_BLOCKING_MODE, 0);
             $provider_apns_objs[$k]->setOption(spSimpleAPNS::OPT_CONNECT_ASYNC, 1);
             $provider_apns_objs[$k]->setOption(spSimpleAPNS::OPT_CONNECT_PERSISTENT, 1);

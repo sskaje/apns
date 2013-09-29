@@ -19,11 +19,14 @@ class spSimpleAPNS {
 
 	protected $dev_mode = false;
 	protected $cert_path;
+    protected $cert_passphrase = '';
 
-	public function __construct($cert_path, $dev_mode=false)
+	public function __construct($cert_path, $cert_passphrase='', $dev_mode=false)
 	{
 		$this->cert_path = $cert_path;
-		$this->dev_mode  = $dev_mode;
+		$this->cert_passphrase = $cert_passphrase;
+        $this->dev_mode  = $dev_mode;
+
 
 		# set default options
 		$this->setOption(self::OPT_CONNECT_ASYNC, 1);
@@ -154,6 +157,9 @@ class spSimpleAPNS {
 		# Create Context
 		$ctx = stream_context_create();
 		stream_context_set_option($ctx, 'ssl', 'local_cert', $this->cert_path);
+        if (!empty($this->cert_passphrase)) {
+            stream_context_set_option($ctx, 'ssl', 'passphrase', $this->cert_passphrase);
+        }
 
 		#
 		# Push

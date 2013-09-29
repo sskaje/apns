@@ -219,6 +219,7 @@ class spAPNSProxyConfig
 
     static protected $provider_defaults = array(
         'cert_path' =>  null,
+        'cert_pass' => '',
         'dev_mode'  =>  0,
         'auth_user' =>  '',
         'auth_pass' =>  '',

@@ -38,6 +38,7 @@ class spAPNSProxyDaemon_simple extends spAPNSProxyDaemon
 RETRY:
             $apnsobj = new spSimpleAPNS(
                 $providers[$val['provider']]['cert_path'],
+                $providers[$val['provider']]['cert_pass'],
                 $providers[$val['provider']]['dev_mode']
             );
             $apnsobj->setOption(spSimpleAPNS::OPT_BLOCKING_MODE, $this->config['non_blocking']);
