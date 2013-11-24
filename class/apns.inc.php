@@ -65,7 +65,7 @@ class spAPNSQueue
     /**
      * @var ifAPNSQueue
      */
-    static protected $q;
+    protected $q;
 
     public function __construct($handler, $config)
     {
