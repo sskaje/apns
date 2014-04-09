@@ -81,9 +81,9 @@ class spAPNSProxy
             $ret_identities = array();
 
             foreach ($json as $array) {
-                if (!isset($array['token']) || !isset($array['message']) || !isset($array['message']['aps'])) {
+                if (!isset($array['token']) || !isset($array['message']) || !isset($array['message']['aps']) || !spAPNSUtils::CheckToken($array['token'])) {
                     $ret_identities[] = null;
-                    $this->log(LOG_INFO, ' [API] invalid message. provider='.$provider, $array );
+                    $this->log(LOG_INFO, ' [API] invalid message. provider='.$provider, $array);
                     continue;
                 }
 
