@@ -19,11 +19,11 @@ class spAPNSMessage
             if (!empty($array)) {
                 if (isset($array['aps']['alert'])) {
                     $this->setAlert(
-                        isset($array['aps']['alert']['body'])			? $array['aps']['alert']['body'] 			: null,
-                        isset($array['aps']['alert']['action_loc_key'])	? $array['aps']['alert']['action_loc_key']	: null,
-                        isset($array['aps']['alert']['loc_key'])		? $array['aps']['alert']['loc_key']			: null,
-                        isset($array['aps']['alert']['loc_args'])		? $array['aps']['alert']['loc_args']		: array(),
-                        isset($array['aps']['alert']['launch_image'])	? $array['aps']['alert']['launch_image']	: null
+                        isset($array['aps']['alert']['body'])            ? $array['aps']['alert']['body']             : null,
+                        isset($array['aps']['alert']['action_loc_key'])    ? $array['aps']['alert']['action_loc_key']    : null,
+                        isset($array['aps']['alert']['loc_key'])        ? $array['aps']['alert']['loc_key']            : null,
+                        isset($array['aps']['alert']['loc_args'])        ? $array['aps']['alert']['loc_args']        : array(),
+                        isset($array['aps']['alert']['launch_image'])    ? $array['aps']['alert']['launch_image']    : null
                     );
                 }
                 if (isset($array['aps']['badge'])) {
@@ -44,11 +44,11 @@ class spAPNSMessage
     }
 
     protected $alert = array(
-        'body'				=>	'',
-        'action-loc-key'	=>	null,
-        'loc-key'			=>	'',
-        'loc-args'			=>	array(),
-        'launch-image'		=>	'',
+        'body'                =>    '',
+        'action-loc-key'    =>    null,
+        'loc-key'            =>    '',
+        'loc-args'            =>    array(),
+        'launch-image'        =>    '',
     );
     protected $badge = null;
     protected $sound = '';
@@ -65,11 +65,11 @@ class spAPNSMessage
      */
     public function setAlert($body, $action_loc_key=null, $loc_key='', array $loc_args=array(), $launch_image='')
     {
-        $this->alert['body'] 			= strval($body);
-        $this->alert['action-loc-key']	= strval($action_loc_key);
-        $this->alert['loc-key']			= strval($loc_key);
-        $this->alert['loc-args']		= (array) $loc_args;
-        $this->alert['launch-image']	= strval($launch_image);
+        $this->alert['body']             = strval($body);
+        $this->alert['action-loc-key']    = strval($action_loc_key);
+        $this->alert['loc-key']            = strval($loc_key);
+        $this->alert['loc-args']        = (array) $loc_args;
+        $this->alert['launch-image']    = strval($launch_image);
         return $this;
     }
     /**
@@ -151,8 +151,8 @@ class spAPNSMessage
         }
 
         $ret = array(
-            'aps'	=>	array(
-                'alert'		=>	$alert,
+            'aps'    =>    array(
+                'alert'        =>    $alert,
             ),
         );
         if ($this->badge !== null) {

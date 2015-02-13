@@ -22,11 +22,11 @@ class spAPNSProxy
         $this->config = $config;
 
         $queue_config = array(
-            'host'  =>  $config->queue_host,
-            'port'  =>  $config->queue_port,
-            'timeout'   =>  $config->queue_timeout,
-            'key'   =>  $config->queue_key,
-            'block_read'    =>  $config->queue_block_read,
+            'host'                  =>  $config->queue_host,
+            'port'                  =>  $config->queue_port,
+            'timeout'               =>  $config->queue_timeout,
+            'key'                   =>  $config->queue_key,
+            'block_read'            =>  $config->queue_block_read,
             'block_read_timeout'    =>  $config->queue_block_read_timeout,
         );
 
@@ -146,9 +146,28 @@ class spAPNSProxy
             LOG_INFO    =>  'info.log',
             LOG_EMERG   =>  'emerg.log',
         );
-        file_put_contents(
-            $this->config->log_path . '/' . $logfiles[$level],
-            date('Y-m-d H:i:s ').trim($msg) . ($var != null ? var_export($var, 1) : '') . "\n",
+
+        $file = $this->config->log_path . '/' . $logfiles[$level];
+        $content = date('Y-m-d H:i:s ').trim($msg) . ($var != null ? var_export($var, 1) : '') . "\n";
+
+        if (!$this->write_log($file, $content)) {
+            mkdir($this->config->log_path, 0777, true);
+            $this->write_log($file, $content);
+        }
+    }
+
+    /**
+     * Append log to file
+     *
+     * @param $file
+     * @param $content
+     * @return int
+     */
+    protected function write_log($file, $content)
+    {
+        return file_put_contents(
+            $file,
+            $content,
             FILE_APPEND
         );
     }

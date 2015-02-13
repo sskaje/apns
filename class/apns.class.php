@@ -6,134 +6,138 @@
  * @author sskaje
  */
 class spSimpleAPNS {
-	protected $servers = array(
-		'sandbox'	=>	array(
-			'gateway'	=>	'ssl://gateway.sandbox.push.apple.com:2195',
-			'feedback'	=>	'ssl://feedback.sandbox.push.apple.com:2196',
-		),
-		'product'	=>	array(
-			'gateway'	=>	'ssl://gateway.push.apple.com:2195',
-			'feedback'	=>	'ssl://feedback.push.apple.com:2196',
-		),
-	);
+    protected $servers = array(
+        'sandbox'    =>    array(
+            'gateway'    =>    'ssl://gateway.sandbox.push.apple.com:2195',
+            'feedback'    =>    'ssl://feedback.sandbox.push.apple.com:2196',
+        ),
+        'product'    =>    array(
+            'gateway'    =>    'ssl://gateway.push.apple.com:2195',
+            'feedback'    =>    'ssl://feedback.push.apple.com:2196',
+        ),
+    );
 
-	protected $dev_mode = false;
-	protected $cert_path;
+    protected $dev_mode = false;
+    protected $cert_path;
     protected $cert_passphrase = '';
 
-	public function __construct($cert_path, $cert_passphrase='', $dev_mode=false)
-	{
-		$this->cert_path = $cert_path;
-		$this->cert_passphrase = $cert_passphrase;
+    public function __construct($cert_path, $cert_passphrase='', $dev_mode=false)
+    {
+        $this->cert_path = $cert_path;
+        $this->cert_passphrase = $cert_passphrase;
         $this->dev_mode  = $dev_mode;
 
 
-		# set default options
-		$this->setOption(self::OPT_CONNECT_ASYNC, 1);
-		$this->setOption(self::OPT_CONNECT_PERSISTENT, 1);
-		$this->setOption(self::OPT_BLOCKING_MODE, 0);
-	}
+        # set default options
+        $this->setOption(self::OPT_CONNECT_ASYNC, 1);
+        $this->setOption(self::OPT_CONNECT_PERSISTENT, 1);
+        $this->setOption(self::OPT_BLOCKING_MODE, 0);
+    }
 
-	public function __destruct()
-	{
-		$this->close();
-	}
+    public function __destruct()
+    {
+        $this->close();
+    }
+
+    /**
+     * Connect asynchronously
+     */
+    const OPT_CONNECT_ASYNC = 1;
+    /**
+     * Connect persistently
+     */
+    const OPT_CONNECT_PERSISTENT = 2;
+    /**
+     * Blocking/non-blocking mode
+     */
+    const OPT_BLOCKING_MODE = 3;
+    /**
+     * Options array
+     *
+     * @var array
+     */
+    protected $options = array();
+
+    /**
+     * Set options
+     *
+     * @param int $opt_key
+     * @param mixed $value
+     */
+    public function setOption($opt_key, $value)
+    {
+        switch ($opt_key) {
+
+            case self::OPT_CONNECT_ASYNC:
+                if ($value) {
+                    # turn on async flag and turn off sync
+                    $this->connect_flag |= STREAM_CLIENT_ASYNC_CONNECT;
+                    $this->connect_flag &= ~STREAM_CLIENT_CONNECT;
+                    $this->options[$opt_key] = 1;
+                } else {
+                    # turn on sync flag and turn off async
+                    $this->connect_flag |= STREAM_CLIENT_CONNECT;
+                    $this->connect_flag &= ~STREAM_CLIENT_ASYNC_CONNECT;
+                    $this->options[$opt_key] = 0;
+                }
+
+                break;
+
+            case self::OPT_CONNECT_PERSISTENT:
+
+                if ($value) {
+                    # turn on persistent flag
+                    $this->connect_flag |= STREAM_CLIENT_PERSISTENT;
+                    $this->options[$opt_key] = 1;
+                } else {
+                    # turn off persistent flag
+                    $this->connect_flag &= ~STREAM_CLIENT_PERSISTENT;
+                    $this->options[$opt_key] = 0;
+                }
+
+                break;
+
+            case self::OPT_BLOCKING_MODE:
+
+                if ($value) {
+                    $this->options[$opt_key] = 1;
+                } else {
+                    $this->options[$opt_key] = 0;
+                }
+
+                break;
+        }
+    }
+
+    /**
+     * Get all options
+     *
+     * @return array
+     */
+    public function getOptions()
+    {
+        return $this->options;
+    }
+
+    /**
+     * Get option by key
+     *
+     * @param int $key
+     * @return mixed
+     */
+    public function getOption($key)
+    {
+        return isset($this->options[$key]) ? $this->options[$key] : null;
+    }
 
 	/**
-	 * Connect asynchronously
-	 */
-	const OPT_CONNECT_ASYNC = 1;
-	/**
-	 * Connect persistently
-	 */
-	const OPT_CONNECT_PERSISTENT = 2;
-	/**
-	 * Blocking/non-blocking mode
-	 */
-	const OPT_BLOCKING_MODE = 3;
-	/**
-	 * Options array
+	 * Connection flags
 	 *
-	 * @var array
+	 * @var int
 	 */
-	protected $options = array();
+    protected $connect_flag;
 
-	/**
-	 * Set options
-	 *
-	 * @param int $opt_key
-	 * @param mixed $value
-	 */
-	public function setOption($opt_key, $value)
-	{
-		switch ($opt_key) {
-
-			case self::OPT_CONNECT_ASYNC:
-				if ($value) {
-					# turn on async flag and turn off sync
-					$this->connect_flag |= STREAM_CLIENT_ASYNC_CONNECT;
-					$this->connect_flag &= ~STREAM_CLIENT_CONNECT;
-					$this->options[$opt_key] = 1;
-				} else {
-					# turn on sync flag and turn off async
-					$this->connect_flag |= STREAM_CLIENT_CONNECT;
-					$this->connect_flag &= ~STREAM_CLIENT_ASYNC_CONNECT;
-					$this->options[$opt_key] = 0;
-				}
-
-				break;
-
-			case self::OPT_CONNECT_PERSISTENT:
-
-				if ($value) {
-					# turn on persistent flag
-					$this->connect_flag |= STREAM_CLIENT_PERSISTENT;
-					$this->options[$opt_key] = 1;
-				} else {
-					# turn off persistent flag
-					$this->connect_flag &= ~STREAM_CLIENT_PERSISTENT;
-					$this->options[$opt_key] = 0;
-				}
-
-				break;
-
-			case self::OPT_BLOCKING_MODE:
-
-				if ($value) {
-					$this->options[$opt_key] = 1;
-				} else {
-					$this->options[$opt_key] = 0;
-				}
-
-				break;
-		}
-	}
-
-	/**
-	 * Get all options
-	 *
-	 * @return array
-	 */
-	public function getOptions()
-	{
-		return $this->options;
-	}
-
-	/**
-	 * Get option by key
-	 *
-	 * @param int $key
-	 * @return mixed
-	 */
-	public function getOption($key)
-	{
-		return isset($this->options[$key]) ? $this->options[$key] : null;
-	}
-
-
-	protected $connect_flag;
-
-	protected $fp = array();
+    protected $fp = array();
 
     /**
      * Get connection host
@@ -142,9 +146,9 @@ class spSimpleAPNS {
      * @return string
      */
     protected function get_host($key)
-	{
-		return $this->servers[$this->dev_mode ? 'sandbox' : 'product'][$key] . '/?rnd='.md5($this->cert_path);
-	}
+    {
+        return $this->servers[$this->dev_mode ? 'sandbox' : 'product'][$key] . '/?rnd='.md5($this->cert_path);
+    }
 
     /**
      * Create connection
@@ -153,43 +157,43 @@ class spSimpleAPNS {
      * @return bool|resource
      */
     protected function connect($key)
-	{
-		# Create Context
-		$ctx = stream_context_create();
-		stream_context_set_option($ctx, 'ssl', 'local_cert', $this->cert_path);
+    {
+        # Create Context
+        $ctx = stream_context_create();
+        stream_context_set_option($ctx, 'ssl', 'local_cert', $this->cert_path);
         if (!empty($this->cert_passphrase)) {
             stream_context_set_option($ctx, 'ssl', 'passphrase', $this->cert_passphrase);
         }
 
-		#
-		# Push
-		$fp = stream_socket_client(
-			$this->get_host($key),
-			$errno,
-			$error,
-			100,
-			$this->connect_flag,
-			$ctx
-		);
+        #
+        # Push
+        $fp = stream_socket_client(
+            $this->get_host($key),
+            $errno,
+            $error,
+            100,
+            $this->connect_flag,
+            $ctx
+        );
         if (!$fp) {
             throw new SPAPNS_Exception(
-				"Connection failed. key={$key} {$error}#{$errno}; openssl error=" . openssl_error_string() ,
-				100002
-			);
+                "Connection failed. key={$key} {$error}#{$errno}; openssl error=" . openssl_error_string() ,
+                100002
+            );
         }
-		# blocking
-		stream_set_blocking($fp, $this->options[self::OPT_BLOCKING_MODE]);
-		
-		stream_set_write_buffer($fp, 0);
+        # blocking
+        stream_set_blocking($fp, $this->options[self::OPT_BLOCKING_MODE]);
 
-		if (!$fp) {
-			throw new SPAPNS_Exception('Failed to create connection ' . $key, 100001);
-		}
+        stream_set_write_buffer($fp, 0);
 
-		$this->fp[$key] = & $fp;
+        if (!$fp) {
+            throw new SPAPNS_Exception('Failed to create connection ' . $key, 100001);
+        }
 
-		return $fp;
-	}
+        $this->fp[$key] = & $fp;
+
+        return $fp;
+    }
 
     /**
      * Performs socket read
@@ -234,44 +238,44 @@ class spSimpleAPNS {
      * @return bool|int
      */
     public function push(spAPNSMessage $messageobj, $tokens, &$connection=null)
-	{
-		$tokens = (array) $tokens;
-		$message = '';
-		if (isset($tokens['token'])) {
-			$tokens = array($tokens);
-		}
+    {
+        $tokens = (array) $tokens;
+        $message = '';
+        if (isset($tokens['token'])) {
+            $tokens = array($tokens);
+        }
 
-		foreach ($tokens as $t) {
-			$identifier = null;
-			$expiry = null;
+        foreach ($tokens as $t) {
+            $identifier = null;
+            $expiry = null;
 
-			if (is_array($t)) {
-				if (!isset($t['token'])) {
-					continue;
-				}
-				if (isset($t['identifier'])) {
-					$identifier = $t['identifier'];
-				}
-				if (isset($t['expiry'])) {
-					$expiry = $t['expiry'];
-				}
-			} else {
-				$token = $t;
-			}
-			$payload = $messageobj->payload($token, $identifier, $expiry);
-			if (!$payload) {
-				continue;
-			}
-			$message .= $payload;
-		}
+            if (is_array($t)) {
+                if (!isset($t['token'])) {
+                    continue;
+                }
+                if (isset($t['identifier'])) {
+                    $identifier = $t['identifier'];
+                }
+                if (isset($t['expiry'])) {
+                    $expiry = $t['expiry'];
+                }
+            } else {
+                $token = $t;
+            }
+            $payload = $messageobj->payload($token, $identifier, $expiry);
+            if (!$payload) {
+                continue;
+            }
+            $message .= $payload;
+        }
 
-		if (empty($message)) {
-			return false;
-		}
+        if (empty($message)) {
+            return false;
+        }
 
-		$fwrite = $this->write('gateway', $message, $connection);
-		return $fwrite;
-	}
+        $fwrite = $this->write('gateway', $message, $connection);
+        return $fwrite;
+    }
 
     /**
      * Push one message
@@ -284,16 +288,16 @@ class spSimpleAPNS {
      * @return bool|int
      */
     public function pushOne(spAPNSMessage $messageobj, $token, $identifier=null, $expiry=null, &$connection=null)
-	{
-		$message = $messageobj->payload($token, $identifier, $expiry);
+    {
+        $message = $messageobj->payload($token, $identifier, $expiry);
 
-		if (empty($message)) {
-			return false;
-		}
+        if (empty($message)) {
+            return false;
+        }
 
         $fwrite = $this->write('gateway', $message, $connection);
-		return $fwrite;
-	}
+        return $fwrite;
+    }
 
     const BATCH_SELECT_TIMEOUT = 10;
 
@@ -333,7 +337,7 @@ class spSimpleAPNS {
                 $tv_usec = null;
                 $r = array($connection);
                 $we = null;
-                $numChanged = stream_select($r, $we, $we, $tv_sec, $tv_usec);		//参数为引用，所以得先命名参数
+                $numChanged = stream_select($r, $we, $we, $tv_sec, $tv_usec);        //参数为引用，所以得先命名参数
 
                 if($numChanged > 0) {
                     $error = $this->readErrorResponse($connection);
@@ -365,13 +369,13 @@ class spSimpleAPNS {
      * @return array|null
      */
     public function readErrorResponse(&$connection=null)
-	{
-		$read = $this->read('gateway', 6, $connection);
-		if (!$read) {
-			return null;
-		}
+    {
+        $read = $this->read('gateway', 6, $connection);
+        if (!$read) {
+            return null;
+        }
         return unpack('Ccommand/Ccode/Nidentifier', $read);
-	}
+    }
 
     /**
      * Feedback service
@@ -381,22 +385,22 @@ class spSimpleAPNS {
      * @param int $loop_count
      */
     public function feedback($callback, $daemon=false, $loop_count=100000)
-	{
-		$c = 0;
+    {
+        $c = 0;
         $fp = $this->connect('feedback');
-		while (($daemon || ++$c < $loop_count) && ($feedback = fread($fp, 38))) {
+        while (($daemon || ++$c < $loop_count) && ($feedback = fread($fp, 38))) {
             $fb_array = unpack('Ntimestamp/ntokenLength/H*token', $feedback);
 
-			if(!empty($fb_array['token'])){
-				# feedback failure callback
-				if (is_callable($callback)) {
-					call_user_func($callback, $fb_array['token'], $fb_array);
-				}
-			} else {
-				usleep(300000);
-			}
-		}
-	}
+            if(!empty($fb_array['token'])){
+                # feedback failure callback
+                if (is_callable($callback)) {
+                    call_user_func($callback, $fb_array['token'], $fb_array);
+                }
+            } else {
+                usleep(300000);
+            }
+        }
+    }
 
     /**
      * Close connection
@@ -404,17 +408,17 @@ class spSimpleAPNS {
      * @param string|null $key
      */
     public function close($key=null)
-	{
-		if (!$key || !isset($this->fp[$key])) {
-			foreach ($this->fp as $k=>$v) {
-				fclose($this->fp[$k]);
+    {
+        if (!$key || !isset($this->fp[$key])) {
+            foreach ($this->fp as $k=>$v) {
+                fclose($this->fp[$k]);
                 unset($this->fp[$k]);
-			}
-		} else {
-			fclose($this->fp[$key]);
+            }
+        } else {
+            fclose($this->fp[$key]);
             unset($this->fp[$key]);
-		}
-	}
+        }
+    }
 }
 
 # EOF
