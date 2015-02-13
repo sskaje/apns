@@ -1,0 +1,17 @@
+{
+    "name": "sskaje/apns",
+    "description": "sskaje's APNS client and proxy",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "sskaje",
+            "email": "sskaje@gmail.com",
+            "homepage": "https://sskaje.me"
+        }
+    ],
+    "minimum-stability": "dev",
+    "require": {
+        "php": ">=5.3.0",
+        "php-redis": ">=2.0.0",
+    }
+}
