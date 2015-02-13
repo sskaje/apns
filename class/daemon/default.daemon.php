@@ -81,17 +81,25 @@ class spAPNSProxyDaemon_default extends spAPNSProxyDaemon
                 $retry++;
             } while($retry <= 3);
 
-            # non-blocking read
-            $error_response = $provider_apns_objs[$val['provider']]->readErrorResponse();
-            if ($error_response) {
-                $this->proxy->log(
-                    LOG_ERR,
-                    '[DAEMON] ERROR RESPONSE: CODE='.$error_response['code'] . ' IDENTIFIER='.$error_response['identifier'],
-                    array()
-                );
-                $provider_apns_objs[$val['provider']]->close();
-            }
-
+			try {
+            	# non-blocking read
+            	$error_response = $provider_apns_objs[$val['provider']]->readErrorResponse();
+				if ($error_response) {
+					$this->proxy->log(
+						LOG_ERR,
+						'[DAEMON] ERROR RESPONSE: CODE='.$error_response['code'] . ' IDENTIFIER='.$error_response['identifier'],
+						array()
+					);
+					$provider_apns_objs[$val['provider']]->close();
+				}
+			} catch (Exception $e) {
+				$this->proxy->log(
+					LOG_EMERG,
+					'[DAEMON] Exception: Code='.$e->getCode() . ' Message='.$e->getMessage() . " Provider=" . $val['provider'],
+					array()
+				);
+			}
+            
         } while( $this->config['run_as_daemon']
             || ($c++ < $this->config['loop_limit'] && (microtime(1) - $time0) <= $this->config['time_limit']));
 

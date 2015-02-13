@@ -172,7 +172,10 @@ class spSimpleAPNS {
 			$ctx
 		);
         if (!$fp) {
-            throw new SPAPNS_Exception('Connection failed. key='.$key, 100002);
+            throw new SPAPNS_Exception(
+				"Connection failed. key={$key} {$error}#{$errno}; openssl error=" . openssl_error_string() ,
+				100002
+			);
         }
 		# blocking
 		stream_set_blocking($fp, $this->options[self::OPT_BLOCKING_MODE]);
