@@ -11,14 +11,21 @@ require(__DIR__ . '/proxy.class.php');
 require(__DIR__ . '/proxy_client.class.php');
 
 if (!function_exists('apns_json_encode')) {
-    function apns_replace_unicode($in) {
-        return json_decode('"' . $in .'"');
-    }
+    if (version_compare(PHP_VERSION, '5.4.0') >= 0) {
+        function apns_json_encode($in) 
+        {
+            return json_encode($in, JSON_UNESCAPED_UNICODE);
+        }
+    } else {
+        function apns_replace_unicode($in) {
+            return json_decode('"' . $in .'"');
+        }
 
-    function apns_json_encode($in)
-    {
-        $s = preg_replace("#(\\\u[0-9a-f]{4})+#ie", "apns_replace_unicode('$0')", json_encode($in));
-        return $s;
+        function apns_json_encode($in)
+        {
+            $s = preg_replace("#(\\\u[0-9a-f]{4})+#ie", "apns_replace_unicode('$0')", json_encode($in));
+            return $s;
+        }
     }
 }
 
